@@ -18,28 +18,33 @@ Bootstrap(app)
 class ImageForm(FlaskForm):
     image = FileField("Upload your image", validators=[FileRequired(),
                                                        FileAllowed(["jpg", "png"], "Images only!"),
-                                                       InputRequired()])
+                                                       ])
     submit = SubmitField()
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def home():
-
+    uploaded_image = None
     form = ImageForm()
-
-    return render_template("index.html", form=form)
-
-
-@app.route("/upload", methods=["POST"])
-def upload():
-    file = request.files["image"]
-    if file:
+    if form.validate_on_submit():
+        # Getting the folder to delete any old files
+        image_folder = app.config['UPLOAD_FOLDER']
+        # os.listdir creates a list of files in the image folder, but not the complete path
+        for junk_file in os.listdir(image_folder):
+            # Deletes the images in the folder
+            os.remove(os.path.join(image_folder, junk_file))
+        # Save the uploaded file
+        file = form.image.data
         filename = secure_filename(file.filename)
-        file.save(os.path.join(
-            app.config['UPLOAD_FOLDER'], filename
-        ))
-        print("Photo saved")
-        return redirect(url_for("home"))
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        uploaded_image = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        print("Photo Saved")
+        return render_template("index.html", form=form, image=uploaded_image)
+    return render_template("index.html", form=form, image=uploaded_image)
 
+
+@app.errorhandler(413)
+def largefile_error(error):
+    return redirect(url_for("home"))
 
 if __name__ == "__main__":
     app.run(debug=True)
