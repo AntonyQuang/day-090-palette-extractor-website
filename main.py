@@ -10,16 +10,17 @@ import numpy as np
 import pandas
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = "a"
+app.config['SECRET_KEY'] = "secretkey"
 app.config['UPLOAD_FOLDER'] = "static/files"
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 #16MB
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 Bootstrap(app)
 
 
 class ImageForm(FlaskForm):
-    image = FileField("Upload your image", validators=[FileRequired(),
-                                                       FileAllowed(["jpg", "png"], "Images only!"),
-                                                       ])
+    image = FileField("Upload your image, max size 16MB", validators=[FileRequired(),
+                                                                      FileAllowed(["jpeg", "jpg", "png"],
+                                                                                  "Please choose an image file!"),
+                                                                      ])
     submit = SubmitField()
 
 
@@ -41,8 +42,8 @@ def home():
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         uploaded_image = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         top_colours = extract(uploaded_image)
-        return render_template("index.html", form=form, image=uploaded_image)
-    return render_template("index.html", form=form, image=uploaded_image)
+        return render_template("index.html", form=form, image=uploaded_image, colours=top_colours)
+    return render_template("index.html", form=form, image=uploaded_image, colours=top_colours)
 
 
 @app.errorhandler(413)
@@ -66,10 +67,18 @@ def extract(uploaded_image):
             hex_string = "#%02X%02X%02X" % colour_tuple
             list_of_colours.append(hex_string)
     colours = pandas.Series(list_of_colours)
-    top_colours = colours.value_counts().index.tolist()[0:10]
 
-    return top_colours
+    descending_colours = colours.value_counts().index.tolist()
+    end = int(len(descending_colours) / 4)
+    step = int(end / 10)
+    if step < 1:
+        return descending_colours[0:10]
+    top_colours = descending_colours[0:end:step]
+    if len(top_colours) <= 10:
+        return top_colours
+    else:
+        return top_colours[0:10]
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
